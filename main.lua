@@ -8,11 +8,13 @@ function love.load()
     screen.width = 800
     screen.height = 600
     love.window.setMode(screen.width, screen.height)
+    love.window.setTitle('Computator Fabae')
 
     -- Game Board Initial Setup
     initialSettings = {}
     initialSettings.circle_radius = 10
-    initialSettings.circles_num = 20
+    initialSettings.circles_num = 14
+    initialSettings.maxDistanceFromCenter = function () return math.min(screen.height, screen.width) / 2 end
     
     -- First initialization of the gameState
     gameState.circles_num = initialSettings.circles_num
@@ -24,13 +26,13 @@ function love.load()
     -- add 6 colors to the colors table
     colors = {}
     table.insert(colors, {values = {1, 0, 0}, name = "red"})
-    table.insert(colors, {values = {1, 1, 0}, name = "yellow"})
-    table.insert(colors, {values = {1, 0.5, 0}, name = "orange"})
+    table.insert(colors, {values = {0, 0, 0}, name = "black"})
+    table.insert(colors, {values = {1, 1, 1}, name = "white"})
     table.insert(colors, {values = {0, 1, 0}, name = "green"})
     table.insert(colors, {values = {0, 0, 1}, name = "blue"})
     table.insert(colors, {values = {1, 0, 1}, name = "purple"})
 
-    updateRunMode('init')
+    UpdateRunMode('init')
 end
 
 function love.update(dt)
@@ -38,17 +40,21 @@ function love.update(dt)
     gameState.dtSum = gameState.dtSum + dt
 
     if gameState._runMode == 'init' then
-        circles = init(circles)
-        updateRunMode('play')
+        circles = Init(circles)
+        UpdateRunMode('play')
 
     elseif gameState._runMode == 'play' then
         -- Pass
 
     elseif gameState._runMode == 'win' then
-        shrinkCircles(dt)
+        ShrinkCircles(dt)
+        if gameState.dtSum > 1 then
+            gameState.circles_num = gameState.circles_num + 1
+            UpdateRunMode('init')
+        end
 
     elseif gameState._runMode == 'lose' then
-        shrinkCircles(dt)
+        ShrinkCircles(dt, GetMaxCircleColor(circles))
 
     else
         -- Throw an exception
@@ -59,41 +65,54 @@ end
 function love.draw()
     drawCirclesGameStates = {play = true, win = true, lose = true}
     if drawCirclesGameStates[gameState._runMode] then
+        -- Draw one big circle around the center
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.circle('fill', screen.width/2, screen.height/2, initialSettings.maxDistanceFromCenter())
+        love.graphics.setColor(0.1, 0.1, 0.1)
+        love.graphics.circle('fill', screen.width/2, screen.height/2, initialSettings.maxDistanceFromCenter()-2)
+
         -- Draw every circle from circles
         for i = 1, #circles do
             -- print the circle 
-            love.graphics.setColor(circles[i].color.values)
-            love.graphics.circle("fill", circles[i].x, circles[i].y, circles[i].radius)
+            if circles[i].color.name == 'black' then
+                love.graphics.setColor(1, 1, 1)
+                love.graphics.circle("fill", circles[i].x, circles[i].y, circles[i].radius)
+                love.graphics.setColor(0.2, 0.2, 0.2)
+                love.graphics.circle("fill", circles[i].x, circles[i].y, circles[i].radius-1)
+            else
+                love.graphics.setColor(circles[i].color.values)
+                love.graphics.circle("fill", circles[i].x, circles[i].y, circles[i].radius)
+            end
         end
 
         -- Print which color is the most common
         love.graphics.setColor(1,1,1)
         love.graphics.setFont(gameFont)
-        love.graphics.print(string.format('Score: %s', score), 50, 50)
+        love.graphics.print(string.format('%s', scoreToRomanNumeral(score)), 50, 50)
     end
 end
 
 function love.mousepressed(x, y, button, istouch, presses)
     -- If mouse clicks on a target colored circle, turn gamestate to init and add 1 to score
     if button == 1 and gameState._runMode == 'play' then
-        maxColor = colors[getMaxCircles(circles)]
+        maxColor = colors[GetMaxCircleColor(circles)]
         for i = 1, #circles do
             if math.sqrt((circles[i].x - x)^2 + (circles[i].y - y)^2) < circles[i].radius then
                 if circles[i].color == maxColor then
                     score = score + 1
                     gameState.circles_num = gameState.circles_num + 1
-                    updateRunMode('win')
+                    UpdateRunMode('win')
                     break
                 else
                     score = 0
                     gameState.circles_num = initialSettings.circles_num
-                    updateRunMode('lose')
+                    UpdateRunMode('lose')
                 end
             end
         end
         mouseDown = true
     elseif button == 1 and (gameState._runMode == 'lose' or gameState._runMode == 'win') then
-        updateRunMode('init')
+        UpdateRunMode('init')
     end
 end
 
@@ -103,32 +122,32 @@ function love.mousereleased(x, y, button, istouch, presses)
     end
 end
 
-function updateRunMode(newState)
+function UpdateRunMode(newState)
     gameState.dtSum = 0
     gameState._runMode = newState
     print('Game state: ' .. gameState._runMode)
 end
 
-function addCircle(circles, radius, color)
+function AddCircle(circles, radius, color)
     local x, y
 
     -- Find an empty spot
-    while true do
-        x = math.random(initialSettings.circle_radius, screen.width  - initialSettings.circle_radius)
-        y = math.random(initialSettings.circle_radius, screen.height - initialSettings.circle_radius)
+    ::retry::
+    x = math.random(initialSettings.circle_radius, screen.width  - initialSettings.circle_radius)
+    y = math.random(initialSettings.circle_radius, screen.height - initialSettings.circle_radius)
 
-        -- If x and y are more than 2*circle_radius removed from another circle in the circles table, break
-        local valid = true
-        for i = 1, #circles do
-            if math.sqrt((circles[i].x - x)^2 + (circles[i].y - y)^2) < 2*initialSettings.circle_radius then
-                valid = false
-                break
-            end
-        end
-        if valid then
-            break
+    -- If x and y are too far from the center, retry
+    if math.sqrt((screen.width/2 - x)^2 + (screen.height/2 - y)^2) > initialSettings.maxDistanceFromCenter() - initialSettings.circle_radius then
+        goto retry
+    end
+
+    -- If x and y are more than 2*circle_radius removed from another circle in the circles table, retry
+    for i = 1, #circles do
+        if math.sqrt((circles[i].x - x)^2 + (circles[i].y - y)^2) < 2*initialSettings.circle_radius then
+            goto retry
         end
     end
+
     table.insert(
         circles,
         {
@@ -140,17 +159,22 @@ function addCircle(circles, radius, color)
     )
 end
 
-function shrinkCircles(dt)
+function ShrinkCircles(dt, except)
     for i = 1, #circles do
+        if except and circles[i].color.name == colors[except].name then
+            goto continue
+        end
+
         circles[i].radius = circles[i].radius - (1.9 * circles[i].radius) * dt
         if circles[i].radius < 0 then
             circles[i].radius = 0
         end
+        ::continue::
     end
 end
 
 -- circles: table
-function init(circles)
+function Init(circles)
 
     gameState._runMode = 'init'
     gameState.dtSum = 0
@@ -159,48 +183,18 @@ function init(circles)
         circles[k] = nil
     end
 
-    -- insert random colored circles
-    for i = 1, gameState.circles_num do
-        addCircle(circles, initialSettings.circle_radius, colors[math.random(1, 6)])
+    -- insert an equal amount of colored circles of every kind
+    for i = 1, math.floor(gameState.circles_num/6)*6 do
+        AddCircle(circles, initialSettings.circle_radius, colors[math.fmod(i-1,6)+1])
     end
-
-    -- Count every color
-    local colorCount = {}
-    for i = 1, 6 do
-        colorCount[i] = 0
-    end
-    for i = 1, #circles do
-        for j = 1, 6 do
-            if circles[i].color == colors[j] then
-                colorCount[j] = colorCount[j] + 1
-            end
-        end
-    end
-
-    -- Set the color with the largest number of circles
-    local maxCount = 0
-    for i = 1, 6 do
-        if colorCount[i] > maxCount then
-            maxCount = colorCount[i]
-            maxColor = i
-        end
-    end
-
-    -- Check if there is only 1 color which has the largest number of circles
-    local tie = false
-    for i = 1, 6 do
-        if i ~= maxColor and colorCount[i] == maxCount then
-            tie = true
-            break
-        end
-    end
-
-    addCircle(circles, initialSettings.circle_radius, colors[maxColor])
+    -- insert another one so only one has a small majority
+    AddCircle(circles, initialSettings.circle_radius, colors[math.random(1, 6)])
 
     return circles
 end
 
-function getMaxCircles(circles)
+function GetMaxCircleColor(circles)
+    -- Gets the index of the most common circle color
     local colorCount = {}
     for i = 1, 6 do
         colorCount[i] = 0
@@ -226,4 +220,30 @@ function getMaxCircles(circles)
     end
 
     return maxColor
+end
+
+function scoreToRomanNumeral(score)
+    local romanNumerals = {
+        {1000, "M"},
+        {900, "CM"},
+        {500, "D"},
+        {400, "CD"},
+        {100, "C"},
+        {90, "XC"},
+        {50, "L"},
+        {40, "XL"},
+        {10, "X"},
+        {9, "IX"},
+        {5, "V"},
+        {4, "IV"},
+        {1, "I"}
+    }
+    local result = ""
+    for _, numeral in ipairs(romanNumerals) do
+        while score >= numeral[1] do
+            result = result .. numeral[2]
+            score = score - numeral[1]
+        end
+    end
+    return result
 end
