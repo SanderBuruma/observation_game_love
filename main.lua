@@ -41,7 +41,21 @@ function love.update(dt)
 
     if gameState._runMode == 'init' then
         circles = Init(circles)
-        UpdateRunMode('play')
+        UpdateRunMode('postInit')
+    
+    elseif gameState._runMode == 'postInit' then
+        if gameState.dtSum <= 1 then
+            -- Grow circles closer and closer to initialsettings.circle_radius
+            for i = 1, #circles do
+                circles[i].radius = circles[i].radius + (initialSettings.circle_radius - circles[i].radius) * dt * 3
+            end
+        else
+            -- Set all circles to default radius
+            for i = 1, #circles do
+                circles[i].radius = initialSettings.circle_radius
+            end
+            UpdateRunMode('play')
+        end
 
     elseif gameState._runMode == 'play' then
         -- Pass
@@ -63,13 +77,14 @@ function love.update(dt)
 end
 
 function love.draw()
-    drawCirclesGameStates = {play = true, win = true, lose = true}
+    -- Draw one big circle around the center
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.circle('fill', screen.width/2, screen.height/2, initialSettings.maxDistanceFromCenter())
+    love.graphics.setColor(0.1, 0.1, 0.1)
+    love.graphics.circle('fill', screen.width/2, screen.height/2, initialSettings.maxDistanceFromCenter()-2)
+
+    drawCirclesGameStates = {play = true, win = true, lose = true, postInit = true}
     if drawCirclesGameStates[gameState._runMode] then
-        -- Draw one big circle around the center
-        love.graphics.setColor(1, 1, 1)
-        love.graphics.circle('fill', screen.width/2, screen.height/2, initialSettings.maxDistanceFromCenter())
-        love.graphics.setColor(0.1, 0.1, 0.1)
-        love.graphics.circle('fill', screen.width/2, screen.height/2, initialSettings.maxDistanceFromCenter()-2)
 
         -- Draw every circle from circles
         for i = 1, #circles do
@@ -185,10 +200,10 @@ function Init(circles)
 
     -- insert an equal amount of colored circles of every kind
     for i = 1, math.floor(gameState.circles_num/6)*6 do
-        AddCircle(circles, initialSettings.circle_radius, colors[math.fmod(i-1,6)+1])
+        AddCircle(circles, initialSettings.circle_radius/10, colors[math.fmod(i-1,6)+1])
     end
     -- insert another one so only one has a small majority
-    AddCircle(circles, initialSettings.circle_radius, colors[math.random(1, 6)])
+    AddCircle(circles, initialSettings.circle_radius/10, colors[math.random(1, 6)])
 
     return circles
 end
