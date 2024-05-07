@@ -18,7 +18,7 @@ function love.load()
     
     -- First initialization of the gameState
     gameState.circles_num = initialSettings.circles_num
-    circles = {}
+    gameState.circles = {}
     score = 0
     gameFont = love.graphics.newFont(40)
     mouseDown = false
@@ -40,19 +40,19 @@ function love.update(dt)
     gameState.dtSum = gameState.dtSum + dt
 
     if gameState._runMode == 'init' then
-        circles = Init(circles)
+        gameState.circles = Init(gameState.circles)
         UpdateRunMode('postInit')
     
     elseif gameState._runMode == 'postInit' then
         if gameState.dtSum <= 1 then
-            -- Grow circles closer and closer to initialsettings.circle_radius
-            for i = 1, #circles do
-                circles[i].radius = circles[i].radius + (initialSettings.circle_radius - circles[i].radius) * dt * 3
+            -- Grow gameState.circles closer and closer to initialsettings.circle_radius
+            for i = 1, #gameState.circles do
+                gameState.circles[i].radius = gameState.circles[i].radius + (initialSettings.circle_radius - gameState.circles[i].radius) * dt * 3
             end
         else
-            -- Set all circles to default radius
-            for i = 1, #circles do
-                circles[i].radius = initialSettings.circle_radius
+            -- Set all gameState.circles to default radius
+            for i = 1, #gameState.circles do
+                gameState.circles[i].radius = initialSettings.circle_radius
             end
             UpdateRunMode('play')
         end
@@ -68,7 +68,7 @@ function love.update(dt)
         end
 
     elseif gameState._runMode == 'lose' then
-        ShrinkCircles(dt, GetMaxCircleColor(circles))
+        ShrinkCircles(dt, GetMaxCircleColor())
 
     else
         -- Throw an exception
@@ -86,17 +86,17 @@ function love.draw()
     drawCirclesGameStates = {play = true, win = true, lose = true, postInit = true}
     if drawCirclesGameStates[gameState._runMode] then
 
-        -- Draw every circle from circles
-        for i = 1, #circles do
+        -- Draw every circle from gameState.circles
+        for i = 1, #gameState.circles do
             -- print the circle 
-            if circles[i].color.name == 'black' then
+            if gameState.circles[i].color.name == 'black' then
                 love.graphics.setColor(1, 1, 1)
-                love.graphics.circle("fill", circles[i].x, circles[i].y, circles[i].radius)
+                love.graphics.circle("fill", gameState.circles[i].x, gameState.circles[i].y, gameState.circles[i].radius)
                 love.graphics.setColor(0.2, 0.2, 0.2)
-                love.graphics.circle("fill", circles[i].x, circles[i].y, circles[i].radius-1)
+                love.graphics.circle("fill", gameState.circles[i].x, gameState.circles[i].y, gameState.circles[i].radius-1)
             else
-                love.graphics.setColor(circles[i].color.values)
-                love.graphics.circle("fill", circles[i].x, circles[i].y, circles[i].radius)
+                love.graphics.setColor(gameState.circles[i].color.values)
+                love.graphics.circle("fill", gameState.circles[i].x, gameState.circles[i].y, gameState.circles[i].radius)
             end
         end
 
@@ -110,10 +110,10 @@ end
 function love.mousepressed(x, y, button, istouch, presses)
     -- If mouse clicks on a target colored circle, turn gamestate to init and add 1 to score
     if button == 1 and gameState._runMode == 'play' then
-        maxColor = colors[GetMaxCircleColor(circles)]
-        for i = 1, #circles do
-            if math.sqrt((circles[i].x - x)^2 + (circles[i].y - y)^2) < circles[i].radius then
-                if circles[i].color == maxColor then
+        maxColor = colors[GetMaxCircleColor()]
+        for i = 1, #gameState.circles do
+            if math.sqrt((gameState.circles[i].x - x)^2 + (gameState.circles[i].y - y)^2) < gameState.circles[i].radius then
+                if gameState.circles[i].color == maxColor then
                     score = score + 1
                     gameState.circles_num = gameState.circles_num + 1
                     UpdateRunMode('win')
@@ -156,15 +156,15 @@ function AddCircle(circles, radius, color)
         goto retry
     end
 
-    -- If x and y are more than 2*circle_radius removed from another circle in the circles table, retry
-    for i = 1, #circles do
-        if math.sqrt((circles[i].x - x)^2 + (circles[i].y - y)^2) < 2*initialSettings.circle_radius then
+    -- If x and y are more than 2*circle_radius removed from another circle in the gameState.circles table, retry
+    for i = 1, #gameState.circles do
+        if math.sqrt((gameState.circles[i].x - x)^2 + (gameState.circles[i].y - y)^2) < 2*initialSettings.circle_radius then
             goto retry
         end
     end
 
     table.insert(
-        circles,
+        gameState.circles,
         {
             x = x,
             y = y,
@@ -175,40 +175,39 @@ function AddCircle(circles, radius, color)
 end
 
 function ShrinkCircles(dt, except)
-    for i = 1, #circles do
-        if except and circles[i].color.name == colors[except].name then
+    for i = 1, #gameState.circles do
+        if except and gameState.circles[i].color.name == colors[except].name then
             goto continue
         end
 
-        circles[i].radius = circles[i].radius - (1.9 * circles[i].radius) * dt
-        if circles[i].radius < 0 then
-            circles[i].radius = 0
+        gameState.circles[i].radius = gameState.circles[i].radius - (1.9 * gameState.circles[i].radius) * dt
+        if gameState.circles[i].radius < 0 then
+            gameState.circles[i].radius = 0
         end
         ::continue::
     end
 end
 
--- circles: table
 function Init(circles)
 
     gameState._runMode = 'init'
     gameState.dtSum = 0
-    -- Reset circles
-    for k in pairs(circles) do
-        circles[k] = nil
+    -- Reset gameState.circles
+    for k in pairs(gameState.circles) do
+        gameState.circles[k] = nil
     end
 
-    -- insert an equal amount of colored circles of every kind
+    -- insert an equal amount of colored gameState.circles of every kind
     for i = 1, math.floor(gameState.circles_num/6)*6 do
-        AddCircle(circles, initialSettings.circle_radius/10, colors[math.fmod(i-1,6)+1])
+        AddCircle(gameState.circles, initialSettings.circle_radius/10, colors[math.fmod(i-1,6)+1])
     end
     -- insert another one so only one has a small majority
-    AddCircle(circles, initialSettings.circle_radius/10, colors[math.random(1, 6)])
+    AddCircle(gameState.circles, initialSettings.circle_radius/10, colors[math.random(1, 6)])
 
-    return circles
+    return gameState.circles
 end
 
-function GetMaxCircleColor(circles)
+function GetMaxCircleColor()
     -- Gets the index of the most common circle color
     local colorCount = {}
     for i = 1, 6 do
@@ -216,15 +215,15 @@ function GetMaxCircleColor(circles)
     end
 
     -- Count every color
-    for i = 1, #circles do
+    for i = 1, #gameState.circles do
         for j = 1, #colors do
-            if circles[i].color.name == colors[j].name then
+            if gameState.circles[i].color.name == colors[j].name then
                 colorCount[j] = colorCount[j] + 1
             end
         end
     end
 
-    -- Set the color with the largest number of circles
+    -- Set the color with the largest number of gameState.circles
     local maxCount = 0
     local maxColor = 0
     for i = 1, 6 do
