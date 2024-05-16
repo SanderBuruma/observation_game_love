@@ -25,12 +25,12 @@ function love.load()
 
     -- add 6 colors to the colors table
     colors = {}
-    table.insert(colors, {values = {1, 0, 0}, name = "red"})
-    table.insert(colors, {values = {0, 0, 0}, name = "black"})
-    table.insert(colors, {values = {1, 1, 1}, name = "white"})
-    table.insert(colors, {values = {0, 1, 0}, name = "green"})
-    table.insert(colors, {values = {0, 0, 1}, name = "blue"})
-    table.insert(colors, {values = {1, 0, 1}, name = "purple"})
+    table.insert(colors, {values = {1, 0, 0}, name = "red", border = false})
+    table.insert(colors, {values = {0, 0, 0}, name = "black", border = {1,1,1}})
+    table.insert(colors, {values = {1, 1, 1}, name = "white", border = {.8,.8,.8}})
+    table.insert(colors, {values = {0, 1, 0}, name = "green", border = false})
+    table.insert(colors, {values = {0.2, 0.2, 1}, name = "blue", border = {.9,.9,1}})
+    table.insert(colors, {values = {1, 0, 1}, name = "purple", border = false})
 
     UpdateRunMode('init')
 end
@@ -89,18 +89,18 @@ function love.draw()
         -- Draw every circle from gameState.circles
         for i = 1, #gameState.circles do
             -- print the circle 
-            if gameState.circles[i].color.name == 'black' then
-                love.graphics.setColor(1, 1, 1)
-                love.graphics.circle("fill", gameState.circles[i].x, gameState.circles[i].y, gameState.circles[i].radius)
-                love.graphics.setColor(0.2, 0.2, 0.2)
-                love.graphics.circle("fill", gameState.circles[i].x, gameState.circles[i].y, gameState.circles[i].radius-1)
+            local c = gameState.circles[i]
+            if c.color.border then
+                love.graphics.setColor(c.color.border)
+                love.graphics.circle("fill", c.x, c.y, c.radius)
+                love.graphics.setColor(c.color.values)
+                love.graphics.circle("fill", c.x, c.y, c.radius-1)
             else
-                love.graphics.setColor(gameState.circles[i].color.values)
-                love.graphics.circle("fill", gameState.circles[i].x, gameState.circles[i].y, gameState.circles[i].radius)
+                love.graphics.setColor(c.color.values)
+                love.graphics.circle("fill", c.x, c.y, c.radius)
             end
         end
 
-        -- Print which color is the most common
         love.graphics.setColor(1,1,1)
         love.graphics.setFont(gameFont)
         love.graphics.print(string.format('%s', scoreToRomanNumeral(score)), 50, 50)
@@ -126,7 +126,9 @@ function love.mousepressed(x, y, button, istouch, presses)
             end
         end
         mouseDown = true
-    elseif button == 1 and (gameState._runMode == 'lose' or gameState._runMode == 'win') then
+    elseif button == 1 and (gameState._runMode == 'lose') and gameState.dtSum > 2 then
+        UpdateRunMode('init')
+    elseif button == 1 and (gameState._runMode == 'win') then
         UpdateRunMode('init')
     end
 end
