@@ -5,7 +5,7 @@ Sander Mary Buruma
 Click any circle of the color which is the most prevalent
 
 # Random ideas
-- Circles move away from the cursor while the cursor is over them
+- Circles move away from the cursor while the cursor is near them
 - Googly eyes on the circles
 - Color blind adaptability by making colors so that they are different shades to the colorblind
 - Background
@@ -13,4 +13,4 @@ Click any circle of the color which is the most prevalent
 ## modifiers
 - Limited Vision
 - Shifting colors (in and out of greyscale)
-- One bean is removed from a random color which isn't the max. Clicking that bean resets the level
+- One bean is removed from a random color which isn't the max. Clicking that bean color resets the level without losing

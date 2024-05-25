@@ -147,21 +147,32 @@ end
 
 function AddCircle(circles, radius, color)
     local x, y
+    local valid
 
     -- Find an empty spot
-    ::retry::
-    x = math.random(initialSettings.circle_radius, screen.width  - initialSettings.circle_radius)
-    y = math.random(initialSettings.circle_radius, screen.height - initialSettings.circle_radius)
+    while true do
+        x = math.random(initialSettings.circle_radius, screen.width  - initialSettings.circle_radius)
+        y = math.random(initialSettings.circle_radius, screen.height - initialSettings.circle_radius)
 
-    -- If x and y are too far from the center, retry
-    if math.sqrt((screen.width/2 - x)^2 + (screen.height/2 - y)^2) > initialSettings.maxDistanceFromCenter() - initialSettings.circle_radius then
-        goto retry
-    end
+        -- If x and y are too far from the center, retry
+        if math.sqrt((screen.width/2 - x)^2 + (screen.height/2 - y)^2) > initialSettings.maxDistanceFromCenter() - initialSettings.circle_radius then
+            valid = false
+        else
+            valid = true
+        end
 
-    -- If x and y are more than 2*circle_radius removed from another circle in the gameState.circles table, retry
-    for i = 1, #gameState.circles do
-        if math.sqrt((gameState.circles[i].x - x)^2 + (gameState.circles[i].y - y)^2) < 2*initialSettings.circle_radius then
-            goto retry
+        -- If x and y are more than 2*circle_radius removed from another circle in the gameState.circles table, retry
+        if valid then
+            for i = 1, #gameState.circles do
+                if math.sqrt((gameState.circles[i].x - x)^2 + (gameState.circles[i].y - y)^2) < 2*initialSettings.circle_radius then
+                    valid = false
+                    break
+                end
+            end
+        end
+
+        if valid then
+            break
         end
     end
 
@@ -178,15 +189,12 @@ end
 
 function ShrinkCircles(dt, except)
     for i = 1, #gameState.circles do
-        if except and gameState.circles[i].color.name == colors[except].name then
-            goto continue
+        if not (except and gameState.circles[i].color.name == colors[except].name) then
+            gameState.circles[i].radius = gameState.circles[i].radius - (1.9 * gameState.circles[i].radius) * dt
+            if gameState.circles[i].radius < 0 then
+                gameState.circles[i].radius = 0
+            end
         end
-
-        gameState.circles[i].radius = gameState.circles[i].radius - (1.9 * gameState.circles[i].radius) * dt
-        if gameState.circles[i].radius < 0 then
-            gameState.circles[i].radius = 0
-        end
-        ::continue::
     end
 end
 
