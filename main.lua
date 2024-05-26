@@ -106,10 +106,6 @@ function love.draw()
                 love.graphics.circle("fill", c.x, c.y, c.radius)
             end
         end
-
-        love.graphics.setColor(1,1,1)
-        love.graphics.setFont(gameFont)
-        love.graphics.print(string.format('%s', scoreToRomanNumeral(score)), 50, 50)
     end
 end
 
@@ -256,34 +252,8 @@ function GetMaxCircleColor(gs)
     return maxColor
 end
 
-function scoreToRomanNumeral(score)
-    local romanNumerals = {
-        {1000, "M"},
-        {900, "CM"},
-        {500, "D"},
-        {400, "CD"},
-        {100, "C"},
-        {90, "XC"},
-        {50, "L"},
-        {40, "XL"},
-        {10, "X"},
-        {9, "IX"},
-        {5, "V"},
-        {4, "IV"},
-        {1, "I"}
-    }
-    local result = ""
-    for _, numeral in ipairs(romanNumerals) do
-        while score >= numeral[1] do
-            result = result .. numeral[2]
-            score = score - numeral[1]
-        end
-    end
-    return result
-end
-
 function PhysicsUpdate(gs, dt)
-    local minforce = 0
+    local maxforce = 0
     for i = 1, #gs.circles do
         gs.circles[i].x = gs.circles[i].x + gs.circles[i].x_vel * dt
         gs.circles[i].y = gs.circles[i].y + gs.circles[i].y_vel * dt
@@ -302,13 +272,13 @@ function PhysicsUpdate(gs, dt)
         for j = i, #gs.circles do
             if i ~= j then
                 local distance = math.sqrt((gs.circles[i].x - gs.circles[j].x)^2 + (gs.circles[i].y - gs.circles[j].y)^2)
-                local force = - 5000 / (distance^2) + 30 / distance - 0
+                local force = (-1e2+distance*20)/(1+1*distance^2)
                 local angle = math.atan2(gs.circles[j].y - gs.circles[i].y, gs.circles[j].x - gs.circles[i].x)
                 gs.circles[i].x_vel = gs.circles[i].x_vel + math.cos(angle) * force * dt
                 gs.circles[i].y_vel = gs.circles[i].y_vel + math.sin(angle) * force * dt
                 gs.circles[j].x_vel = gs.circles[j].x_vel - math.cos(angle) * force * dt
                 gs.circles[j].y_vel = gs.circles[j].y_vel - math.sin(angle) * force * dt
-                minforce = math.min(minforce, force)
+                maxforce = math.max(maxforce, force)
 
                 -- Bounce balls off of eachother realistically
                 if distance < gs.circles[i].radius + gs.circles[j].radius then
@@ -325,5 +295,5 @@ function PhysicsUpdate(gs, dt)
             end
         end
     end
-    print(minforce)
+    print(maxforce)
 end
