@@ -14,6 +14,7 @@ function love.load()
     initialSettings = {}
     initialSettings.circle_radius = 10
     initialSettings.circles_num = 14
+    initialSettings.max_vel = 12
     initialSettings.maxDistanceFromCenter = function () return math.min(screen.height, screen.width) / 2 end
     
     -- First initialization of the gameState
@@ -51,6 +52,7 @@ function love.update(dt)
             for i = 1, #gameState.circles do
                 gameState.circles[i].radius = gameState.circles[i].radius + (initialSettings.circle_radius - gameState.circles[i].radius) * dt * 3
             end
+            PhysicsUpdate(gameState, dt)
         else
             -- Set all gameState.circles to default radius
             for i = 1, #gameState.circles do
@@ -60,10 +62,11 @@ function love.update(dt)
         end
 
     elseif gameState._runMode == 'play' then
-        -- Pass
+        PhysicsUpdate(gameState, dt)
 
     elseif gameState._runMode == 'win' then
         ShrinkCircles(gameState.circles, dt)
+        PhysicsUpdate(gameState, dt)
         if gameState.dtSum > 1 then
             gameState.circles_num = gameState.circles_num + 1
             UpdateRunMode(gameState, 'init')
@@ -71,6 +74,7 @@ function love.update(dt)
 
     elseif gameState._runMode == 'lose' then
         ShrinkCircles(gameState.circles, dt, GetMaxCircleColor(gameState))
+        PhysicsUpdate(gameState, dt)
 
     else
         -- Throw an exception
@@ -147,7 +151,7 @@ function UpdateRunMode(gs, newState)
     print('Game state: ' .. gs._runMode)
 end
 
-function AddCircle(circles, radius, color)
+function AddCircle(circles, radius, color, max_vel)
     local x, y
     local valid
 
@@ -155,6 +159,8 @@ function AddCircle(circles, radius, color)
     while true do
         x = math.random(radius, screen.width  - radius)
         y = math.random(radius, screen.height - radius)
+        x_vel = math.random() * max_vel - math.random() * max_vel
+        y_vel = math.random() * max_vel - math.random() * max_vel
 
         -- If x and y are too far from the center, retry
         if math.sqrt((screen.width/2 - x)^2 + (screen.height/2 - y)^2) > initialSettings.maxDistanceFromCenter() - radius then
@@ -183,6 +189,8 @@ function AddCircle(circles, radius, color)
         {
             x = x,
             y = y,
+            x_vel = x_vel,
+            y_vel = y_vel,
             radius = radius,
             color = color,
         }
@@ -211,10 +219,10 @@ function Init(circles, radius, gs)
 
     -- insert an equal amount of colored gameState.circles of every kind
     for i = 1, math.floor(gs.circles_num/6)*6 do
-        AddCircle(gs.circles, radius, colors[math.fmod(i-1,6)+1])
+        AddCircle(gs.circles, radius, colors[math.fmod(i-1,6)+1], initialSettings.max_vel)
     end
     -- insert another one so only one has a small majority
-    AddCircle(gs.circles, radius, colors[math.random(1, 6)])
+    AddCircle(gs.circles, radius, colors[math.random(1, 6)], initialSettings.max_vel)
 
     return gs.circles
 end
@@ -272,4 +280,50 @@ function scoreToRomanNumeral(score)
         end
     end
     return result
+end
+
+function PhysicsUpdate(gs, dt)
+    local minforce = 0
+    for i = 1, #gs.circles do
+        gs.circles[i].x = gs.circles[i].x + gs.circles[i].x_vel * dt
+        gs.circles[i].y = gs.circles[i].y + gs.circles[i].y_vel * dt
+
+        -- Bounce off off the outer circle walls realistically
+        if math.sqrt((gs.circles[i].x - screen.width/2)^2 + (gs.circles[i].y - screen.height/2)^2) > initialSettings.maxDistanceFromCenter() - gs.circles[i].radius then
+            local perpendicular_angle = math.atan2(gs.circles[i].y - screen.height/2, gs.circles[i].x - screen.width/2) + math.pi/2
+            local angle_of_velocity = math.atan2(gs.circles[i].y_vel, gs.circles[i].x_vel)
+            local velocity = math.sqrt(gs.circles[i].x_vel^2 + gs.circles[i].y_vel^2)
+            local new_angle = 2 * perpendicular_angle - angle_of_velocity
+            gs.circles[i].x_vel = math.cos(new_angle) * velocity
+            gs.circles[i].y_vel = math.sin(new_angle) * velocity
+        end
+
+        -- Calculate attractive / repulsive force to other circles so that ones that are close to eachother repel and those that are further attract
+        for j = i, #gs.circles do
+            if i ~= j then
+                local distance = math.sqrt((gs.circles[i].x - gs.circles[j].x)^2 + (gs.circles[i].y - gs.circles[j].y)^2)
+                local force = - 5000 / (distance^2) + 30 / distance - 0
+                local angle = math.atan2(gs.circles[j].y - gs.circles[i].y, gs.circles[j].x - gs.circles[i].x)
+                gs.circles[i].x_vel = gs.circles[i].x_vel + math.cos(angle) * force * dt
+                gs.circles[i].y_vel = gs.circles[i].y_vel + math.sin(angle) * force * dt
+                gs.circles[j].x_vel = gs.circles[j].x_vel - math.cos(angle) * force * dt
+                gs.circles[j].y_vel = gs.circles[j].y_vel - math.sin(angle) * force * dt
+                minforce = math.min(minforce, force)
+
+                -- Bounce balls off of eachother realistically
+                if distance < gs.circles[i].radius + gs.circles[j].radius then
+                    local angle_ = math.atan2(gs.circles[j].y - gs.circles[i].y, gs.circles[j].x - gs.circles[i].x) - math.pi/2
+                    local velocity1 = math.sqrt(gs.circles[i].x_vel^2 + gs.circles[i].y_vel^2)
+                    local velocity2 = math.sqrt(gs.circles[j].x_vel^2 + gs.circles[j].y_vel^2)
+                    local new_angle1 = 2 * angle_ - math.atan2(gs.circles[i].y_vel, gs.circles[i].x_vel)
+                    local new_angle2 = 2 * angle_ - math.atan2(gs.circles[j].y_vel, gs.circles[j].x_vel)
+                    gs.circles[i].x_vel = math.cos(new_angle1) * velocity1
+                    gs.circles[i].y_vel = math.sin(new_angle1) * velocity1
+                    gs.circles[j].x_vel = math.cos(new_angle2) * velocity2
+                    gs.circles[j].y_vel = math.sin(new_angle2) * velocity2
+                end
+            end
+        end
+    end
+    print(minforce)
 end
